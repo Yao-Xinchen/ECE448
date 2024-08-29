@@ -56,11 +56,88 @@ Main function for training and predicting with the bigram mixture model.
 def bigram_bayes(train_set, train_labels, dev_set, unigram_laplace=1.0, bigram_laplace=1.0, bigram_lambda=1.0, pos_prior=0.5, silently=False):
     print_values_bigram(unigram_laplace,bigram_laplace,bigram_lambda,pos_prior)
 
-    yhats = []
-    for doc in tqdm(dev_set, disable=silently):
-        yhats.append(-1)
+    uni_pos_log_prob, uni_neg_log_prob = train_unigram(unigram_laplace, train_labels, train_set)
+    bi_pos_log_prob, bi_neg_log_prob = train_bigram(bigram_laplace, train_labels, train_set)
+
+    yhats = dev(dev_set, uni_neg_log_prob, uni_pos_log_prob, bi_neg_log_prob, bi_pos_log_prob, bigram_lambda, pos_prior, silently)
 
     return yhats
 
 
+def train_unigram(laplace, train_labels, train_set):
+    # count words in positive and negative reviews
+    pos_count = Counter()
+    neg_count = Counter()
+    for i in range(len(train_set)):
+        if train_labels[i] == 1:
+            pos_count.update(train_set[i])
+        else:
+            neg_count.update(train_set[i])
 
+    # calculate probabilities
+    pos_total = sum(pos_count.values())
+    neg_total = sum(neg_count.values())
+    neg_words, pos_words = set(neg_count.keys()), set(pos_count.keys())
+    vocab = neg_words.union(pos_words)
+    vocab_size = len(vocab)
+    pos_prob = {word: (pos_count[word] + laplace) / (pos_total + laplace * vocab_size) for word in vocab}
+    neg_prob = {word: (neg_count[word] + laplace) / (neg_total + laplace * vocab_size) for word in vocab}
+
+    # convert to log probabilities
+    pos_log_prob = {word: math.log(prob) for word, prob in pos_prob.items()}
+    neg_log_prob = {word: math.log(prob) for word, prob in neg_prob.items()}
+
+    return pos_log_prob, neg_log_prob
+
+
+def train_bigram(laplace, train_labels, train_set):
+    # count pairs in positive and negative reviews
+    pos_count = Counter()
+    neg_count = Counter()
+    for i in range(len(train_set)):
+        for j in range(len(train_set[i]) - 1):
+            bigram = (train_set[i][j], train_set[i][j+1])
+            if train_labels[i] == 1:
+                pos_count[bigram] += 1
+            else:
+                neg_count[bigram] += 1
+
+    # calculate probabilities
+    pos_total = sum(pos_count.values())
+    neg_total = sum(neg_count.values())
+    vocab = set(pos_count.keys()).union(set(neg_count.keys()))
+    vocab_size = len(vocab)
+    pos_prob = {bigram: (pos_count[bigram] + laplace) / (pos_total + laplace * vocab_size) for bigram in vocab}
+    neg_prob = {bigram: (neg_count[bigram] + laplace) / (neg_total + laplace * vocab_size) for bigram in vocab}
+
+    # convert to log probabilities
+    pos_log_prob = {bigram: math.log(prob) for bigram, prob in pos_prob.items()}
+    neg_log_prob = {bigram: math.log(prob) for bigram, prob in neg_prob.items()}
+
+    return pos_log_prob, neg_log_prob
+
+
+def dev(dev_set, uni_neg_log_prob, uni_pos_log_prob, bi_neg_log_prob, bi_pos_log_prob, bigram_lambda, pos_prior, silently):
+    yhats = []
+
+    for doc in tqdm(dev_set, disable=silently):
+        # unigram score
+        uni_pos_score = math.log(pos_prior)
+        uni_neg_score = math.log(1 - pos_prior)
+        for word in doc:
+            if word in uni_pos_log_prob:
+                uni_pos_score += uni_pos_log_prob[word]
+                uni_neg_score += uni_neg_log_prob[word]
+        # bigram score
+        bi_pos_score = math.log(pos_prior)
+        bi_neg_score = math.log(1 - pos_prior)
+        for bigram in zip(doc, doc[1:]):
+            if bigram in bi_pos_log_prob:
+                bi_pos_score += bi_pos_log_prob[bigram]
+                bi_neg_score += bi_neg_log_prob[bigram]
+        # combine scores
+        pos_score = (1 - bigram_lambda) * uni_pos_score + bigram_lambda * bi_pos_score
+        neg_score = (1 - bigram_lambda) * uni_neg_score + bigram_lambda * bi_neg_score
+        yhats.append(1 if pos_score > neg_score else 0)
+
+    return yhats
