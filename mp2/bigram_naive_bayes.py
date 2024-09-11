@@ -53,7 +53,7 @@ Main function for training and predicting with the bigram mixture model.
     You can modify the default values for the Laplace smoothing parameters, model-mixture lambda parameter, and the prior for the positive label.
     Notice that we may pass in specific values for these parameters during our testing.
 """
-def bigram_bayes(train_set, train_labels, dev_set, unigram_laplace=1.0, bigram_laplace=1.0, bigram_lambda=1.0, pos_prior=0.5, silently=False):
+def bigram_bayes(train_set, train_labels, dev_set, unigram_laplace=0.001, bigram_laplace=0.005, bigram_lambda=0.5, pos_prior=0.5, silently=False):
     print_values_bigram(unigram_laplace,bigram_laplace,bigram_lambda,pos_prior)
 
     uni_pos_log_prob, uni_neg_log_prob = train_unigram(unigram_laplace, train_labels, train_set)
@@ -75,8 +75,7 @@ def train_unigram(laplace, train_labels, train_set):
             neg_count.update(train_set[i])
 
     # calculate probabilities
-    pos_total = sum(pos_count.values())
-    neg_total = sum(neg_count.values())
+    pos_total, neg_total = sum(pos_count.values()), sum(neg_count.values())
     neg_words, pos_words = set(neg_count.keys()), set(pos_count.keys())
     vocab = neg_words.union(pos_words)
     vocab_size = len(vocab)
@@ -91,21 +90,20 @@ def train_unigram(laplace, train_labels, train_set):
 
 
 def train_bigram(laplace, train_labels, train_set):
-    # count pairs in positive and negative reviews
+    # count bigrams in positive and negative reviews
     pos_count = Counter()
     neg_count = Counter()
     for i in range(len(train_set)):
-        for j in range(len(train_set[i]) - 1):
-            bigram = (train_set[i][j], train_set[i][j+1])
-            if train_labels[i] == 1:
-                pos_count[bigram] += 1
-            else:
-                neg_count[bigram] += 1
+        bigram_set = list(zip(train_set[i], train_set[i][1:]))
+        if train_labels[i] == 1:
+            pos_count.update(bigram_set)
+        else:
+            neg_count.update(bigram_set)
 
     # calculate probabilities
-    pos_total = sum(pos_count.values())
-    neg_total = sum(neg_count.values())
-    vocab = set(pos_count.keys()).union(set(neg_count.keys()))
+    pos_total, neg_total = sum(pos_count.values()), sum(neg_count.values())
+    neg_bigrams, pos_bigrams = set(neg_count.keys()), set(pos_count.keys())
+    vocab = neg_bigrams.union(pos_bigrams)
     vocab_size = len(vocab)
     pos_prob = {bigram: (pos_count[bigram] + laplace) / (pos_total + laplace * vocab_size) for bigram in vocab}
     neg_prob = {bigram: (neg_count[bigram] + laplace) / (neg_total + laplace * vocab_size) for bigram in vocab}
