@@ -55,17 +55,17 @@ Main function for training and predicting with the bigram mixture model.
 """
 def bigram_bayes(train_set, train_labels, dev_set, unigram_laplace=0.005, bigram_laplace=0.005, bigram_lambda=0.5, pos_prior=0.5, silently=False):
     print_values_bigram(unigram_laplace,bigram_laplace,bigram_lambda,pos_prior)
-
+    # train models
     uni_pos_log_prob, uni_neg_log_prob = train_unigram(unigram_laplace, train_labels, train_set)
     bi_pos_log_prob, bi_neg_log_prob = train_bigram(bigram_laplace, train_labels, train_set)
-
+    # predict
     yhats = dev(dev_set, uni_neg_log_prob, uni_pos_log_prob, bi_neg_log_prob, bi_pos_log_prob, bigram_lambda, pos_prior, silently)
-
     return yhats
 
 
 def train_unigram(laplace, train_labels, train_set):
     # count words in positive and negative reviews
+    if (laplace == 0): laplace = 1e-5 # avoid division by zero
     pos_count = Counter()
     neg_count = Counter()
     for i in range(len(train_set)):
@@ -73,7 +73,6 @@ def train_unigram(laplace, train_labels, train_set):
             pos_count.update(train_set[i])
         else:
             neg_count.update(train_set[i])
-
     # calculate probabilities
     pos_total, neg_total = sum(pos_count.values()), sum(neg_count.values())
     neg_words, pos_words = set(neg_count.keys()), set(pos_count.keys())
@@ -81,16 +80,15 @@ def train_unigram(laplace, train_labels, train_set):
     neg_prob = {word: (neg_count[word] + laplace) / (neg_total + laplace * (len(neg_words) + 1)) for word in neg_words}
     pos_prob["UNK"] = laplace / (pos_total + laplace * (len(pos_words) + 1))
     neg_prob["UNK"] = laplace / (neg_total + laplace * (len(neg_words) + 1))
-
     # convert to log probabilities
     pos_log_prob = {word: math.log(prob) for word, prob in pos_prob.items()}
     neg_log_prob = {word: math.log(prob) for word, prob in neg_prob.items()}
-
     return pos_log_prob, neg_log_prob
 
 
 def train_bigram(laplace, train_labels, train_set):
     # count bigrams in positive and negative reviews
+    if (laplace == 0): laplace = 1e-5 # avoid division by zero
     pos_count = Counter()
     neg_count = Counter()
     for i in range(len(train_set)):
@@ -99,7 +97,6 @@ def train_bigram(laplace, train_labels, train_set):
             pos_count.update(bigram_set)
         else:
             neg_count.update(bigram_set)
-
     # calculate probabilities
     pos_total, neg_total = sum(pos_count.values()), sum(neg_count.values())
     neg_bigrams, pos_bigrams = set(neg_count.keys()), set(pos_count.keys())
@@ -107,17 +104,14 @@ def train_bigram(laplace, train_labels, train_set):
     neg_prob = {bigram: (neg_count[bigram] + laplace) / (neg_total + laplace * (len(neg_bigrams) + 1)) for bigram in neg_bigrams}
     pos_prob["UNK"] = laplace / (pos_total + laplace * (len(pos_bigrams) + 1))
     neg_prob["UNK"] = laplace / (neg_total + laplace * (len(neg_bigrams) + 1))
-
     # convert to log probabilities
     pos_log_prob = {bigram: math.log(prob) for bigram, prob in pos_prob.items()}
     neg_log_prob = {bigram: math.log(prob) for bigram, prob in neg_prob.items()}
-
     return pos_log_prob, neg_log_prob
 
 
 def dev(dev_set, uni_neg_log_prob, uni_pos_log_prob, bi_neg_log_prob, bi_pos_log_prob, bigram_lambda, pos_prior, silently):
     yhats = []
-
     for doc in tqdm(dev_set, disable=silently):
         # unigram score
         uni_pos_score = math.log(pos_prior)
@@ -151,5 +145,4 @@ def dev(dev_set, uni_neg_log_prob, uni_pos_log_prob, bi_neg_log_prob, bi_pos_log
         pos_score = (1 - bigram_lambda) * uni_pos_score + bigram_lambda * bi_pos_score
         neg_score = (1 - bigram_lambda) * uni_neg_score + bigram_lambda * bi_neg_score
         yhats.append(1 if pos_score > neg_score else 0)
-
     return yhats
