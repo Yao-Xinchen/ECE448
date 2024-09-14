@@ -28,13 +28,22 @@ def best_first_search(starting_state):
     # NOTE: states are ordered because the __lt__ method of AbstractState is implemented
     frontier = []
     heapq.heappush(frontier, starting_state)
-    
+
     # TODO(III): implement the rest of the best first search algorithm
     # HINTS:
     #   - add new states to the frontier by calling state.get_neighbors()
     #   - check whether you've finished the search by calling state.is_goal()
     #       - then call backtrack(visited_states, state)...
     # Your code here ---------------
+
+    while (len(frontier) > 0):
+        state = heapq.heappop(frontier)
+        if state.is_goal():
+            return backtrack(visited_states, state)
+        for neighbor in state.get_neighbors():
+            if neighbor not in visited_states or visited_states[neighbor][1] > state.dist_from_start + 1:
+                visited_states[neighbor] = (state, state.dist_from_start + 1)
+                heapq.heappush(frontier, neighbor)
 
     # ------------------------------
     
@@ -47,6 +56,10 @@ def best_first_search(starting_state):
 def backtrack(visited_states, goal_state):
     path = []
     # Your code here ---------------
+
+    while goal_state is not None:
+        path.insert(0, goal_state)
+        goal_state = visited_states[goal_state][0]
 
     # ------------------------------
     return path

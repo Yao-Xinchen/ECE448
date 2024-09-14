@@ -126,7 +126,12 @@ class WordLadderState(AbstractState):
     def __lt__(self, other):    
         # You should return True if the current state has a lower g + h value than "other"
         # If they have the same value then you should use tiebreak_idx to decide which is smaller
-        pass
+        if self.dist_from_start + self.h < other.dist_from_start + other.h:
+            return True
+        elif self.dist_from_start + self.h == other.dist_from_start + other.h:
+            return super().__lt__(other)
+        else:
+            return False
     
     # str and repr just make output more readable when you print out states
     def __str__(self):
