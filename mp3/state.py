@@ -67,7 +67,7 @@ class AbstractState(ABC):
 # TODO(III): we've provided you most of WordLadderState, read through our comments and code below.
 #           The only thing you must do is fill in the WordLadderState.__lt__(self, other) method
 class WordLadderState(AbstractState):
-    def __init__(self, state, goal, dist_from_start, use_heuristic, cost_per_letter):
+    def __init__(self, state, goal, dist_from_start, use_heuristic, cost_per_letter=None):
         '''
         state: string of length n
         goal: string of length n
@@ -76,6 +76,8 @@ class WordLadderState(AbstractState):
         '''
         # NOTE: AbstractState constructor does not take cost_per_letter
         super().__init__(state, goal, dist_from_start, use_heuristic)
+        if cost_per_letter is None:
+            cost_per_letter = {}
         self.cost_per_letter = cost_per_letter
         
     # Each word can have many neighbors:
@@ -144,7 +146,7 @@ class WordLadderState(AbstractState):
 # TODO(IV): implement this method (also need it for the next homework)
 # Manhattan distance between two points (a=(a1,a2), b=(b1,b2))
 def manhattan(a, b):
-    return 0
+    return abs(a[0]-b[0]) + abs(a[1]-b[1])
 
 class EightPuzzleState(AbstractState):
     def __init__(self, state, goal, dist_from_start, use_heuristic, zero_loc):
@@ -156,6 +158,21 @@ class EightPuzzleState(AbstractState):
         # NOTE: AbstractState constructor does not take zero_loc
         super().__init__(state, goal, dist_from_start, use_heuristic)
         self.zero_loc = zero_loc
+
+    def _adjacent_state(self, relative_loc):
+        '''
+        Given a relative location to exchange with the zero, return the new state
+        Return None if the exchange location is out of bounds
+        '''
+        exchange_loc = [self.zero_loc[0] + relative_loc[0], self.zero_loc[1] + relative_loc[1]]
+        if exchange_loc[0] < 0 or exchange_loc[0] >= 3 or exchange_loc[1] < 0 or exchange_loc[1] >= 3:
+            # check if the exchange location is out of bounds
+            return None
+        new_state = copy.deepcopy(self.state)
+        # swap the zero with the number at exchange_loc
+        new_state[self.zero_loc[0]][self.zero_loc[1]] = new_state[exchange_loc[0]][exchange_loc[1]]
+        new_state[exchange_loc[0]][exchange_loc[1]] = 0
+        return new_state
     
     # TODO(IV): implement this method
     def get_neighbors(self):
@@ -166,7 +183,22 @@ class EightPuzzleState(AbstractState):
         # NOTE: There are *up to 4* possible neighbors and the order you add them matters for tiebreaking
         #   Please add them in the following order: [below, left, above, right], where for example "below" 
         #   corresponds to moving the empty tile down (moving the tile below the empty tile up)
-        
+
+        relative_locs = [[1,0],[0,-1],[-1,0],[0,1]]
+
+        for relative_loc in relative_locs:
+            new_state = self._adjacent_state(relative_loc)
+            if new_state is not None:
+                new_zero_loc = [self.zero_loc[0] + relative_loc[0], self.zero_loc[1] + relative_loc[1]]
+                new_state = EightPuzzleState(
+                    state=new_state,
+                    goal=self.goal,
+                    dist_from_start=self.dist_from_start + 1, # dist_from_start increases by 1
+                    use_heuristic=self.use_heuristic,
+                    zero_loc=new_zero_loc
+                )
+                nbr_states.append(new_state)
+
         return nbr_states
 
     # Checks if goal has been reached
@@ -185,13 +217,26 @@ class EightPuzzleState(AbstractState):
         total = 0
         # NOTE: There is more than one possible heuristic, 
         #       please implement the Manhattan heuristic, as described in the MP instructions
-        
+
+        for i in range(3):
+            for j in range(3):
+                if self.state[i][j] == 0:
+                    continue
+                num = self.state[i][j]
+                goal_loc = [num // 3, num % 3]
+                total += manhattan([i, j], goal_loc)
+
         return total
     
     # TODO(IV): implement this method
     # Hint: it should be identical to what you wrote in WordLadder.__lt__(self, other)
     def __lt__(self, other):
-        pass
+        if self.dist_from_start + self.h < other.dist_from_start + other.h:
+            return True
+        elif self.dist_from_start + self.h == other.dist_from_start + other.h:
+            return super().__lt__(other)
+        else:
+            return False
     
     # str and repr just make output more readable when you print out states
     def __str__(self):

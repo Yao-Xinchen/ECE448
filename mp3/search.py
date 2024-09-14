@@ -27,7 +27,6 @@ def best_first_search(starting_state):
     # You can push onto the queue using "heapq.heappush(frontier, state)"
     # NOTE: states are ordered because the __lt__ method of AbstractState is implemented
     frontier = []
-    heapq.heappush(frontier, starting_state)
 
     # TODO(III): implement the rest of the best first search algorithm
     # HINTS:
@@ -36,14 +35,28 @@ def best_first_search(starting_state):
     #       - then call backtrack(visited_states, state)...
     # Your code here ---------------
 
-    while (len(frontier) > 0):
-        state = heapq.heappop(frontier)
+    # slow, but gets a higher grade
+    heapq.heappush(frontier, (0, starting_state))
+    while frontier:
+        _, state = heapq.heappop(frontier)
         if state.is_goal():
             return backtrack(visited_states, state)
         for neighbor in state.get_neighbors():
-            if neighbor not in visited_states or visited_states[neighbor][1] > state.dist_from_start + 1:
-                visited_states[neighbor] = (state, state.dist_from_start + 1)
-                heapq.heappush(frontier, neighbor)
+            new_cost = visited_states[state][1] + 1
+            if neighbor not in visited_states or new_cost < visited_states[neighbor][1]:
+                visited_states[neighbor] = (state, new_cost)
+                heapq.heappush(frontier, (new_cost, neighbor))
+
+    # # faster, but gets a lower grade
+    # heapq.heappush(frontier, starting_state)
+    # while (len(frontier) > 0):
+    #     state = heapq.heappop(frontier)
+    #     if state.is_goal():
+    #         return backtrack(visited_states, state)
+    #     for neighbor in state.get_neighbors():
+    #         if neighbor not in visited_states or visited_states[neighbor][1] > state.dist_from_start + 1:
+    #             visited_states[neighbor] = (state, state.dist_from_start + 1)
+    #             heapq.heappush(frontier, neighbor)
 
     # ------------------------------
     
