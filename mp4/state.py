@@ -11,7 +11,7 @@ global_index = count()
 # Manhattan distance between two (x,y) points
 def manhattan(a, b):
     # TODO(III): you should copy your code from MP3 here
-    pass
+    return abs(a[0]-b[0]) + abs(a[1]-b[1])
 
 class AbstractState(ABC):
     def __init__(self, state, goal, dist_from_start=0, use_heuristic=True):
@@ -32,24 +32,29 @@ class AbstractState(ABC):
     @abstractmethod
     def get_neighbors(self):
         pass
-    
+
     # Return True if the state is the goal
     @abstractmethod
     def is_goal(self):
         pass
-    
+
     # A* requires we compute a heuristic from eahc state
     # compute_heuristic should depend on self.state and self.goal
     # Return a float
     @abstractmethod
     def compute_heuristic(self):
         pass
-    
+
     # Return True if self is less than other
     # This method allows the heap to sort States according to f = g + h value
     def __lt__(self, other):
         # TODO(III): you should copy your code from MP3 here
-        pass
+        if self.dist_from_start + self.h < other.dist_from_start + other.h:
+            return True
+        elif self.dist_from_start + self.h == other.dist_from_start + other.h:
+            return self.tiebreak_idx < other.tiebreak_idx
+        else:
+            return False
 
     # __hash__ method allow us to keep track of which 
     #   states have been visited before in a dictionary
@@ -62,7 +67,7 @@ class AbstractState(ABC):
     @abstractmethod
     def __eq__(self, other):
         pass
-    
+
 class SingleGoalGridState(AbstractState):
     # state: a length 2 tuple indicating the current location in the grid, e.g., (x, y)
     # goal: a length 2 tuple indicating the goal location, e.g., (x, y)
@@ -70,7 +75,7 @@ class SingleGoalGridState(AbstractState):
     def __init__(self, state, goal, dist_from_start, use_heuristic, maze_neighbors):
         self.maze_neighbors = maze_neighbors
         super().__init__(state, goal, dist_from_start, use_heuristic)
-        
+
     # This is basically just a wrapper for self.maze_neighbors
     def get_neighbors(self):
         nbr_states = []
@@ -80,13 +85,28 @@ class SingleGoalGridState(AbstractState):
         # TODO(III): fill this in
         # The distance from the start to a neighbor is always 1 more than the distance to the current state
         # -------------------------------
-
+        for loc in neighboring_locs:
+            nbr_states.append(
+                SingleGoalGridState(loc, self.goal, self.dist_from_start+1, self.use_heuristic, self.maze_neighbors)
+            )
         # -------------------------------
         return nbr_states
 
     # TODO(III): fill in the is_goal, compute_heuristic, __hash__, and __eq__ methods
     # Your heuristic should be the manhattan distance between the state and the goal
-    
+
+    def is_goal(self):
+        return self.state == self.goal
+
+    def compute_heuristic(self):
+        return manhattan(self.state, self.goal)
+
+    def __hash__(self):
+        return hash(self.state)
+
+    def __eq__(self, other):
+        return self.state == other.state
+
     # str and repr just make output more readable when your print out states
     def __str__(self):
         return str(self.state)
@@ -103,7 +123,7 @@ class MultiGoalGridState(AbstractState):
         self.maze_neighbors = maze_neighbors
         self.mst_cache = mst_cache
         super().__init__(state, goal, dist_from_start, use_heuristic)
-        
+
     # We get the list of neighbors from maze_neighbors
     # Then we need to check if we've reached one of the goals, and if so remove it
     def get_neighbors(self):
@@ -122,13 +142,13 @@ class MultiGoalGridState(AbstractState):
     #   plus the manhattan distance to the closest goal
     #   (you should use the mst_cache to store the MST values)
     # Think very carefully about your eq and hash methods, is it enough to just hash the state?
-    
+
     # str and repr just make output more readable when your print out states
     def __str__(self):
         return str(self.state) + ", goals=" + str(self.goal)
     def __repr__(self):
         return str(self.state) + ", goals=" + str(self.goal)
-    
+
 class MultiAgentGridState(AbstractState):
     # state: a tuple of agent locations
     # goal: a tuple of goal locations for each agent
@@ -138,7 +158,7 @@ class MultiAgentGridState(AbstractState):
         self.maze_neighbors = maze_neighbors
         self.h_type = h_type
         super().__init__(state, goal, dist_from_start, use_heuristic)
-        
+
     # We get the list of neighbors for each agent from maze_neighbors
     # Then we need to check inter agent collision and inter agent edge collision (crossing paths)
     def get_neighbors(self):
@@ -157,7 +177,7 @@ class MultiAgentGridState(AbstractState):
             pass
             # -------------------------------            
         return nbr_states
-    
+
     def compute_heuristic(self):
         if self.h_type == "admissible":
             return self.compute_heuristic_admissible()
@@ -177,7 +197,7 @@ class MultiAgentGridState(AbstractState):
         pass
     def compute_heuristic_inadmissible(self):
         pass
-    
+
     # str and repr just make output more readable when your print out states
     def __str__(self):
         return str(self.state) + ", goals=" + str(self.goal)
