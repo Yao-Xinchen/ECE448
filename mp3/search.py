@@ -35,31 +35,19 @@ def best_first_search(starting_state):
     #       - then call backtrack(visited_states, state)...
     # Your code here ---------------
 
-    # slow, but gets a higher grade
-    heapq.heappush(frontier, (0, starting_state))
+    heapq.heappush(frontier, starting_state)
     while frontier:
-        _, state = heapq.heappop(frontier)
-        if state.is_goal():
-            return backtrack(visited_states, state)
-        for neighbor in state.get_neighbors():
-            new_cost = visited_states[state][1] + 1
-            if neighbor not in visited_states or new_cost < visited_states[neighbor][1]:
-                visited_states[neighbor] = (state, new_cost)
-                heapq.heappush(frontier, (new_cost, neighbor))
-
-    # # faster, but gets a lower grade
-    # heapq.heappush(frontier, starting_state)
-    # while (len(frontier) > 0):
-    #     state = heapq.heappop(frontier)
-    #     if state.is_goal():
-    #         return backtrack(visited_states, state)
-    #     for neighbor in state.get_neighbors():
-    #         if neighbor not in visited_states or visited_states[neighbor][1] > state.dist_from_start + 1:
-    #             visited_states[neighbor] = (state, state.dist_from_start + 1)
-    #             heapq.heappush(frontier, neighbor)
+        current = heapq.heappop(frontier)
+        if current.is_goal():
+            return backtrack(visited_states, current)
+        for next in current.get_neighbors():
+            # dist_from_start is calculated in get_neighbors()
+            if next not in visited_states or next.dist_from_start < visited_states[next][1]:
+                visited_states[next] = (current, next.dist_from_start)
+                heapq.heappush(frontier, next)
 
     # ------------------------------
-    
+
     # if you do not find the goal return an empty list
     return []
 
