@@ -195,7 +195,15 @@ class MultiAgentGridState(AbstractState):
             #       is the same as the next location of another agent (in nbr_locs) *and vice versa*
             # Before writing code you might want to understand what the above lines of code do...
             # -------------------------------
-            pass
+            # check for collisions
+            if len(nbr_locs) != len(set(nbr_locs)):
+                continue
+            # check for crossing paths
+            if any(nbr_locs[i] == self.state[j] and nbr_locs[j] == self.state[i] for i in range(len(nbr_locs)) for j in range(len(nbr_locs)) if i != j):
+                continue
+            nbr_states.append(
+                MultiAgentGridState(nbr_locs, self.goal, self.dist_from_start+1, self.use_heuristic, self.maze_neighbors, self.h_type)
+            )
             # -------------------------------            
         return nbr_states
 
@@ -215,9 +223,19 @@ class MultiAgentGridState(AbstractState):
     # Your heuristics should be at least as good as ours on the autograder 
     #   (with respect to number of states explored and path length)
     def compute_heuristic_admissible(self):
-        pass
+        return sum(manhattan(self.state[i], self.goal[i]) for i in range(len(self.state)))
+
     def compute_heuristic_inadmissible(self):
-        pass
+        return max(manhattan(self.state[i], self.goal[i]) for i in range(len(self.state)))
+
+    def is_goal(self):
+        return self.state == self.goal
+
+    def __hash__(self):
+        return hash(self.state)
+
+    def __eq__(self, other):
+        return self.state == other.state
 
     # str and repr just make output more readable when your print out states
     def __str__(self):
