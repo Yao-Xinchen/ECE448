@@ -133,7 +133,11 @@ class MultiGoalGridState(AbstractState):
         neighboring_locs = self.maze_neighbors(*self.state)
         # TODO(IV): fill this in
         # -------------------------------
-
+        for loc in neighboring_locs:
+            new_goals = tuple(g for g in self.goal if g != loc) # remove the goal if we reach it
+            nbr_states.append(
+                MultiGoalGridState(loc, new_goals, self.dist_from_start+1, self.use_heuristic, self.maze_neighbors, self.mst_cache)
+            )
         # -------------------------------
         return nbr_states
 
@@ -142,6 +146,23 @@ class MultiGoalGridState(AbstractState):
     #   plus the manhattan distance to the closest goal
     #   (you should use the mst_cache to store the MST values)
     # Think very carefully about your eq and hash methods, is it enough to just hash the state?
+
+    def is_goal(self):
+        return len(self.goal) == 0
+
+    def compute_heuristic(self):
+        if len(self.goal) == 0:
+            return 0
+        min_manhattan = min(manhattan(self.state, g) for g in self.goal)
+        if self.goal not in self.mst_cache:
+            self.mst_cache[self.goal] = compute_mst_cost(self.goal, manhattan)
+        return self.mst_cache[self.goal] + min_manhattan
+
+    def __hash__(self):
+        return hash((self.state, self.goal))
+
+    def __eq__(self, other):
+        return self.state == other.state and self.goal == other.goal
 
     # str and repr just make output more readable when your print out states
     def __str__(self):
