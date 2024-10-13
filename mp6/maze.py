@@ -12,8 +12,10 @@ a representation of the maze that is exposed through a simple interface.
 """
 
 import copy
+
 from state import MazeState, euclidean_distance
 from geometry import does_alien_path_touch_wall, does_alien_touch_wall
+import heapq
 
 
 class MazeError(Exception):
@@ -116,6 +118,12 @@ class Maze:
                 A dict with shape index as keys and the list of waypoints coordinates as values
         """
         valid_waypoints = {i: [] for i in range(len(self.alien.get_shapes()))}
+        for shape_idx, shape in enumerate(self.alien.get_shapes()):
+            alien = copy.deepcopy(self.alien)
+            for waypoint in self.__waypoints:
+                alien.set_alien_config([waypoint[0], waypoint[1], shape])
+                if not does_alien_touch_wall(alien, self.walls):
+                    valid_waypoints[shape_idx].append(waypoint)
         return valid_waypoints
 
     # TODO VI
@@ -128,7 +136,21 @@ class Maze:
                 the k valid waypoints that are closest to waypoint
         """
         nearest_neighbors = []
-        return nearest_neighbors
+        for waypoint in self.__valid_waypoints[cur_shape]:
+            if cur_waypoint == waypoint:
+                continue
+            # test if the alien can move from cur_waypoint to waypoint
+            # do NOT use self.alien directly in does_alien_path_touch_wall()!!!!!
+            cur_alien = copy.deepcopy(self.alien)
+            cur_alien.set_alien_config([cur_waypoint[0], cur_waypoint[1], self.alien.get_shapes()[cur_shape]])
+            if does_alien_path_touch_wall(cur_alien, self.walls, waypoint):
+                continue
+
+            # sort the waypoints by distance
+            heapq.heappush(nearest_neighbors, (euclidean_distance(cur_waypoint, waypoint), waypoint))
+            if len(nearest_neighbors) > self.k:
+                heapq.heappop(nearest_neighbors)
+        return [waypoint for _, waypoint in nearest_neighbors]
 
     def create_new_alien(self, x, y, shape_idx):
         alien = copy.deepcopy(self.alien)
@@ -144,7 +166,17 @@ class Maze:
             Return:
                 True if the move is valid, False otherwise
         """
-        return False
+        if (start, end) in self.move_cache:
+            return self.move_cache[(start, end)]
+
+        # if ((start[0], start[1]) not in self.__valid_waypoints[start[2]]
+        #         or (end[0], end[1]) not in self.__valid_waypoints[end[2]]):
+        #     return False
+
+        alien = self.create_new_alien(start[0], start[1], start[2])
+        move = not does_alien_path_touch_wall(alien, self.walls, (end[0], end[1]))
+        self.move_cache[(start, end)] = move
+        return move
 
     def get_neighbors(self, x, y, shape_idx):
         """Returns list of neighboring squares that can be moved to from the given coordinate
@@ -157,9 +189,11 @@ class Maze:
         """
         self.states_explored += 1
 
+        # position change
         nearest = self.get_nearest_waypoints((x, y), shape_idx)
         neighbors = [(*end, shape_idx) for end in nearest]
-        for end in [(x, y, shape_idx - 1), (x, y, shape_idx + 1)]:
+        # shape change
+        for end in [(x, y, (shape_idx - 1) % 3), (x, y, (shape_idx + 1) % 3)]:
             start = (x, y, shape_idx)
             if self.is_valid_move(start, end):
                 neighbors.append(end)

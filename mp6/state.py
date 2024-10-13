@@ -10,7 +10,7 @@ global_index = count()
 # TODO VI
 # Euclidean distance between two state tuples, of the form (x,y, shape)
 def euclidean_distance(a, b):
-    return 0
+    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
 
 from abc import ABC, abstractmethod
@@ -89,11 +89,19 @@ class MazeState(AbstractState):
         # if the shape changes, it will have a const cost of 10.
         # otherwise, the move cost will be the euclidean distance between the start and the end positions
         nbr_states = []
+        x, y, shape = self.state
+        for nbr in self.maze_neighbors(x, y, shape):
+            if shape != nbr[2]:
+                # shape change
+                nbr_states.append(MazeState(nbr, self.goal, self.dist_from_start + 10, self.maze, self.use_heuristic))
+            else:
+                # position change
+                nbr_states.append(MazeState(nbr, self.goal, self.dist_from_start + euclidean_distance((x, y), nbr), self.maze, self.use_heuristic))
         return nbr_states
 
     # TODO VI
     def is_goal(self):
-        return True
+        return (self.state[0], self.state[1]) in self.goal
 
     # We hash BOTH the state and the remaining goals
     #   This is because (x, y, h, (goal A, goal B)) is different from (x, y, h, (goal A))
@@ -101,22 +109,26 @@ class MazeState(AbstractState):
     # NOTE: the order of the goals in self.goal matters, needs to remain consistent
     # TODO VI
     def __hash__(self):
-        return 0
+        return hash((self.state, self.goal))
 
     # TODO VI
     def __eq__(self, other):
-        return True
+        return self.state == other.state
 
     # Our heuristic is: distance(self.state, nearest_goal)
     # We use euclidean distance
     # TODO VI
     def compute_heuristic(self):
-        return 0
+        return min([euclidean_distance(self.state, goal) for goal in self.goal])
 
     # This method allows the heap to sort States according to f = g + h value
     # TODO VI
     def __lt__(self, other):
-        pass
+        if self.dist_from_start + self.h < other.dist_from_start + other.h:
+            return True
+        elif self.dist_from_start + self.h == other.dist_from_start + other.h:
+            return self.tiebreak_idx < other.tiebreak_idx
+        return False
 
     # str and repr just make output more readable when your print out states
     def __str__(self):

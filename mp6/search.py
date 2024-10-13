@@ -20,7 +20,7 @@ This file contains search functions.
 
 from collections import deque
 import heapq
-
+from maze import Maze
 
 # Search should return the path and the number of states explored.
 # The path should be a list of MazeState objects that correspond
@@ -38,7 +38,18 @@ def search(maze, searchMethod):
 
 
 # TODO: VI
-def astar(maze):
+def astar(maze: Maze):
+    visited_states = {maze.get_start(): (None, 0)}
+    frontier = []
+    heapq.heappush(frontier, maze.get_start())
+    while frontier:
+        current = heapq.heappop(frontier)
+        if current.is_goal():
+            return backtrack(visited_states, current)
+        for next in current.get_neighbors():
+            if next not in visited_states or next.dist_from_start < visited_states[next][1]:
+                visited_states[next] = (current, next.dist_from_start)
+                heapq.heappush(frontier, next)
     return None
 
 
@@ -46,4 +57,8 @@ def astar(maze):
 # NOTE: the parent of the starting state is None
 # TODO: VI
 def backtrack(visited_states, current_state):
-    return None
+    path = []
+    while current_state is not None:
+        path.insert(0, current_state)
+        current_state = visited_states[current_state][0]
+    return path
