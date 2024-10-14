@@ -16,6 +16,7 @@ import copy
 from state import MazeState, euclidean_distance
 from geometry import does_alien_path_touch_wall, does_alien_touch_wall
 
+
 class MazeError(Exception):
     pass
 
@@ -164,25 +165,30 @@ class Maze:
             Return:
                 True if the move is valid, False otherwise
         """
-        # check valid shape index
-        if (start[2] < 0 or start[2] >= len(self.alien.get_shapes())
-                or end[2] < 0 or end[2] >= len(self.alien.get_shapes())):
-            return False
-
         # check cache
         if (start, end) in self.move_cache:
             return self.move_cache[(start, end)]
 
-        # check valid waypoints
-        if ((start[0], start[1]) not in self.__valid_waypoints[start[2]]
-                or (end[0], end[1]) not in self.__valid_waypoints[end[2]]):
-            return False
+        if start[2] == end[2]:
+            alien = self.create_new_alien(*start)
+            valid = not does_alien_path_touch_wall(alien, self.walls, (end[0], end[1]))
+            # it's tested that the result doesn't change if we remove `not` in the above line
+        else:
+            not_move = (start[0] == end[0] and start[1] == end[1])
+            if not_move:
+                hor_ball = (start[2] == 0 and end[2] == 1) or (start[2] == 1 and end[2] == 0)
+                ver_ball = (start[2] == 1 and end[2] == 2) or (start[2] == 2 and end[2] == 1)
+                if hor_ball or ver_ball:
+                    alien = self.create_new_alien(*end)
+                    valid = not does_alien_touch_wall(alien, self.walls)
+                else:
+                    valid = False
+            else:
+                valid = False
 
-        # check wall collision
-        alien = self.create_new_alien(start[0], start[1], start[2])
-        move = not does_alien_path_touch_wall(alien, self.walls, (end[0], end[1]))
-        self.move_cache[(start, end)] = move
-        return move
+        # update cache
+        self.move_cache[(start, end)] = valid
+        return valid
 
     def get_neighbors(self, x, y, shape_idx):
         """Returns list of neighboring squares that can be moved to from the given coordinate
