@@ -15,8 +15,6 @@ import copy
 
 from state import MazeState, euclidean_distance
 from geometry import does_alien_path_touch_wall, does_alien_touch_wall
-import heapq
-
 
 class MazeError(Exception):
     pass
@@ -147,10 +145,10 @@ class Maze:
                 continue
 
             # sort the waypoints by distance
-            heapq.heappush(nearest_neighbors, (euclidean_distance(cur_waypoint, waypoint), waypoint))
-            if len(nearest_neighbors) > self.k:
-                heapq.heappop(nearest_neighbors)
-        return [waypoint for _, waypoint in nearest_neighbors]
+            nearest_neighbors.append((euclidean_distance(cur_waypoint, waypoint), waypoint))
+
+        nearest_neighbors.sort()
+        return [neighbor[1] for neighbor in nearest_neighbors[:self.k]]
 
     def create_new_alien(self, x, y, shape_idx):
         alien = copy.deepcopy(self.alien)
@@ -166,13 +164,21 @@ class Maze:
             Return:
                 True if the move is valid, False otherwise
         """
+        # check valid shape index
+        if (start[2] < 0 or start[2] >= len(self.alien.get_shapes())
+                or end[2] < 0 or end[2] >= len(self.alien.get_shapes())):
+            return False
+
+        # check cache
         if (start, end) in self.move_cache:
             return self.move_cache[(start, end)]
 
-        # if ((start[0], start[1]) not in self.__valid_waypoints[start[2]]
-        #         or (end[0], end[1]) not in self.__valid_waypoints[end[2]]):
-        #     return False
+        # check valid waypoints
+        if ((start[0], start[1]) not in self.__valid_waypoints[start[2]]
+                or (end[0], end[1]) not in self.__valid_waypoints[end[2]]):
+            return False
 
+        # check wall collision
         alien = self.create_new_alien(start[0], start[1], start[2])
         move = not does_alien_path_touch_wall(alien, self.walls, (end[0], end[1]))
         self.move_cache[(start, end)] = move
@@ -193,7 +199,7 @@ class Maze:
         nearest = self.get_nearest_waypoints((x, y), shape_idx)
         neighbors = [(*end, shape_idx) for end in nearest]
         # shape change
-        for end in [(x, y, (shape_idx - 1) % 3), (x, y, (shape_idx + 1) % 3)]:
+        for end in [(x, y, shape_idx - 1), (x, y, shape_idx + 1)]:
             start = (x, y, shape_idx)
             if self.is_valid_move(start, end):
                 neighbors.append(end)
