@@ -26,8 +26,8 @@ def training(sentences):
     # TODO: (I)
     # Input the training set, output the formatted probabilities according to data statistics.
 
-    alpha_e = 0.1 # smoothing parameter
-    alpha_t = 0.1
+    alpha_e = 0.00001 # smoothing parameter
+    alpha_t = 0.00001
 
     # init_prob
     init_prob['START'] = 1
