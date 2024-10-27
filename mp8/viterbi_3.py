@@ -14,8 +14,10 @@ class WordType(enum.Enum):
     VERY_SHORT = 2
     SHORT_S = 3
     SHORT_OTHER = 4
+    SHORT_ED = 7
     LONG_S = 5
     LONG_OTHER = 6
+    LONG_ED = 8
 
 
 def word_type(word) -> WordType:
@@ -26,11 +28,15 @@ def word_type(word) -> WordType:
     if 4 <= len(word) <= 9:
         if word[-1] == 's':
             return WordType.SHORT_S
+        elif word[-2:] == 'ed':
+            return WordType.SHORT_ED
         else:
             return WordType.SHORT_OTHER
     if len(word) >= 10:
         if word[-1] == 's':
             return WordType.LONG_S
+        elif word[-2:] == 'ed':
+            return WordType.LONG_ED
         else:
             return WordType.LONG_OTHER
 
@@ -89,8 +95,9 @@ def training(sentences):
         for word in emit_count[tag]:
             tag_word_alpha_e = alpha_e * tag_scale[tag][word_type(word)]
             emit_prob[tag][word] = (emit_count[tag][word] + tag_word_alpha_e) / (n_t + tag_word_alpha_e * (v_t + 1))
-        tag_alpha_e = alpha_e * sum(tag_scale[tag].values())
-        emit_prob[tag]['UNKNOWN'] = tag_alpha_e / (n_t + tag_alpha_e * (v_t + 1))
+        for type in WordType:
+            tag_alpha_e = alpha_e * tag_scale[tag][type]
+            emit_prob[tag][f"{type}"] = tag_alpha_e / (n_t + tag_alpha_e * (v_t + 1))
 
     # normalize trans_prob
     for prev_tag in emit_prob:
@@ -128,7 +135,7 @@ def viterbi_stepforward(i, word, prev_prob, prev_predict_tag_seq, emit_prob, tra
             if word in emit_prob[tag]:
                 log_prob[tag] = log(emit_prob[tag][word])
             else:
-                log_prob[tag] = log(emit_prob[tag]['UNKNOWN'])
+                log_prob[tag] = log(emit_prob[tag][f"{word_type(word)}"])
             predict_tag_seq[tag] = [tag]
         return log_prob, predict_tag_seq
 
@@ -141,7 +148,7 @@ def viterbi_stepforward(i, word, prev_prob, prev_predict_tag_seq, emit_prob, tra
             if word in emit_prob[tag]:
                 emit_p = emit_prob[tag][word]
             else:
-                emit_p = emit_prob[tag]['UNKNOWN']
+                emit_p = emit_prob[tag][f"{word_type(word)}"]
             prob = prev_prob[prev_tag] + math.log(trans_p) + math.log(emit_p)
             if prob > max_prob:
                 max_prob = prob
