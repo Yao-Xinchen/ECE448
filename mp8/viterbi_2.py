@@ -12,7 +12,6 @@ from math import log
 epsilon_for_pt = 1e-5
 emit_epsilon = 1e-5  # exact setting seems to have little or no effect
 
-
 def training(sentences):
     """
     Computes initial tags, emission words and transition tag-to-tag probabilities
@@ -43,13 +42,26 @@ def training(sentences):
             prev_tag = tag
         trans_count[prev_tag]['END'] += 1
 
+    # extract words that appear only once in training data
+    hapax_smooth = 0.00001
+    hapax_count = defaultdict(lambda: 0)
+    for tag in emit_count:
+        for word in emit_count[tag]:
+            if emit_count[tag][word] == 1:
+                hapax_count[tag] += 1
+    hapax_count_total = sum(hapax_count.values())
+    tag_scale = defaultdict(lambda: hapax_smooth)
+    for tag in hapax_count:
+        tag_scale[tag] = hapax_count[tag] / hapax_count_total
+
     # normalize emit_prob
     for tag in emit_count:
+        tag_alpha_e = alpha_e * tag_scale[tag]
         n_t = sum(emit_count[tag].values())  # total number of words in training data for tag T
         v_t = len(emit_count[tag])  # number of unique words seen in training data for tag T
         for word in emit_count[tag]:
-            emit_prob[tag][word] = (emit_count[tag][word] + alpha_e) / (n_t + alpha_e * (v_t + 1))
-        emit_prob[tag]['UNKNOWN'] = alpha_e / (n_t + alpha_e * (v_t + 1))
+            emit_prob[tag][word] = (emit_count[tag][word] + tag_alpha_e) / (n_t + tag_alpha_e * (v_t + 1))
+        emit_prob[tag]['UNKNOWN'] = tag_alpha_e / (n_t + tag_alpha_e * (v_t + 1))
 
     # normalize trans_prob
     for prev_tag in emit_prob:
