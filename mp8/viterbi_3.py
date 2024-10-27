@@ -6,10 +6,39 @@ with enhancements such as dealing with suffixes/prefixes separately
 import math
 from collections import defaultdict, Counter
 from math import log
+import enum
+
+
+class WordType(enum.Enum):
+    NUMERIC = 1
+    VERY_SHORT = 2
+    SHORT_S = 3
+    SHORT_OTHER = 4
+    LONG_S = 5
+    LONG_OTHER = 6
+
+
+def word_type(word) -> WordType:
+    if word[0].isdigit() and word[-1].isdigit():
+        return WordType.NUMERIC
+    if len(word) <= 3:
+        return WordType.VERY_SHORT
+    if 4 <= len(word) <= 9:
+        if word[-1] == 's':
+            return WordType.SHORT_S
+        else:
+            return WordType.SHORT_OTHER
+    if len(word) >= 10:
+        if word[-1] == 's':
+            return WordType.LONG_S
+        else:
+            return WordType.LONG_OTHER
+
 
 # Note: remember to use these two elements when you find a probability is 0 in the training data.
 epsilon_for_pt = 1e-5
 emit_epsilon = 1e-5  # exact setting seems to have little or no effect
+
 
 def training(sentences):
     """
@@ -20,7 +49,7 @@ def training(sentences):
     init_prob = defaultdict(lambda: 0.)  # {init tag: #}
     emit_prob = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag: {word: # }}
     trans_prob = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag0: {tag1: # }}
-    emit_count = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag: {word: # }}
+    emit_count = defaultdict(lambda: defaultdict(lambda: 0))  # {tag: {word: # }}
     trans_count = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag0: {tag1: # }}
 
     # TODO: (I)
@@ -42,24 +71,25 @@ def training(sentences):
         trans_count[prev_tag]['END'] += 1
 
     # extract words that appear only once in training data
-    hapax_smooth = 0.00001
-    hapax_count = defaultdict(lambda: 0)
+    hapax_count = defaultdict(lambda: defaultdict(lambda: 1))
     for tag in emit_count:
         for word in emit_count[tag]:
             if emit_count[tag][word] == 1:
-                hapax_count[tag] += 1
-    hapax_count_total = sum(hapax_count.values())
-    tag_scale = defaultdict(lambda: hapax_smooth)
-    for tag in hapax_count:
-        tag_scale[tag] = hapax_count[tag] / hapax_count_total
+                hapax_count[tag][word_type(word)] += 1
+    hapax_count_total = sum(sum(hapax_count[tag].values()) for tag in hapax_count)
+    tag_scale = defaultdict(lambda: defaultdict(lambda: 0.))
+    for tag in emit_count:  # all tags
+        for type in WordType:  # all types
+            tag_scale[tag][type] = hapax_count[tag][type] / hapax_count_total
 
     # normalize emit_prob
     for tag in emit_count:
-        tag_alpha_e = alpha_e * tag_scale[tag]
         n_t = sum(emit_count[tag].values())  # total number of words in training data for tag T
         v_t = len(emit_count[tag])  # number of unique words seen in training data for tag T
         for word in emit_count[tag]:
-            emit_prob[tag][word] = (emit_count[tag][word] + tag_alpha_e) / (n_t + tag_alpha_e * (v_t + 1))
+            tag_word_alpha_e = alpha_e * tag_scale[tag][word_type(word)]
+            emit_prob[tag][word] = (emit_count[tag][word] + tag_word_alpha_e) / (n_t + tag_word_alpha_e * (v_t + 1))
+        tag_alpha_e = alpha_e * sum(tag_scale[tag].values())
         emit_prob[tag]['UNKNOWN'] = tag_alpha_e / (n_t + tag_alpha_e * (v_t + 1))
 
     # normalize trans_prob
