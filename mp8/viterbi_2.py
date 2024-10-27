@@ -21,7 +21,9 @@ def training(sentences):
     """
     init_prob = defaultdict(lambda: 0.)  # {init tag: #}
     emit_prob = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag: {word: # }}
-    trans_prob = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag0:{tag1: # }}
+    trans_prob = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag0: {tag1: # }}
+    emit_count = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag: {word: # }}
+    trans_count = defaultdict(lambda: defaultdict(lambda: 0.))  # {tag0: {tag1: # }}
 
     # TODO: (I)
     # Input the training set, output the formatted probabilities according to data statistics.
@@ -36,27 +38,27 @@ def training(sentences):
     for sentence in sentences:
         prev_tag = 'START'
         for word, tag in sentence:
-            emit_prob[tag][word] += 1
-            trans_prob[prev_tag][tag] += 1
+            emit_count[tag][word] += 1
+            trans_count[prev_tag][tag] += 1
             prev_tag = tag
-        trans_prob[prev_tag]['END'] += 1
+        trans_count[prev_tag]['END'] += 1
 
     # normalize emit_prob
-    for tag in emit_prob:
-        n_t = sum(emit_prob[tag].values())  # total number of words in training data for tag T
-        v_t = len(emit_prob[tag])  # number of unique words seen in training data for tag T
-        for word in emit_prob[tag]:
-            emit_prob[tag][word] = (emit_prob[tag][word] + alpha_e) / (n_t + alpha_e * (v_t + 1))
+    for tag in emit_count:
+        n_t = sum(emit_count[tag].values())  # total number of words in training data for tag T
+        v_t = len(emit_count[tag])  # number of unique words seen in training data for tag T
+        for word in emit_count[tag]:
+            emit_prob[tag][word] = (emit_count[tag][word] + alpha_e) / (n_t + alpha_e * (v_t + 1))
         emit_prob[tag]['UNKNOWN'] = alpha_e / (n_t + alpha_e * (v_t + 1))
 
     # normalize trans_prob
     for prev_tag in emit_prob:
         for tag in emit_prob:
-            if trans_prob[prev_tag][tag] == 0:
-                trans_prob[prev_tag][tag] = alpha_t
-        total_transitions = sum(trans_prob[prev_tag].values())
-        for tag in trans_prob[prev_tag]:
-            trans_prob[prev_tag][tag] = trans_prob[prev_tag][tag] / total_transitions
+            if trans_count[prev_tag][tag] == 0:
+                trans_count[prev_tag][tag] = alpha_t
+        total_transitions = sum(trans_count[prev_tag].values())
+        for tag in trans_count[prev_tag]:
+            trans_prob[prev_tag][tag] = trans_count[prev_tag][tag] / total_transitions
 
     return init_prob, emit_prob, trans_prob
 
