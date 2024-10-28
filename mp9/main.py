@@ -1,4 +1,5 @@
-import numpy as np, math
+import numpy as np
+import math
 import matplotlib.pyplot as plt
 import argparse
 from mp9 import *
