@@ -19,6 +19,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.init as init
 import torch.optim as optim
 from utils import get_dataset_from_arrays
 from torch.utils.data import DataLoader
@@ -42,15 +43,21 @@ class NeuralNet(nn.Module):
         """
         super(NeuralNet, self).__init__()
         self.loss_fn = loss_fn
+        self.hidden_size = 256
 
         # For Part 1, the network should have the following architecture (in terms of hidden units):
         # in_size -> h -> out_size, where 1 <= h <= 256
 
+        self.model = nn.Sequential(
+            nn.Linear(in_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, out_size)
+        )
 
-        # TODO Define the network architecture (layers) based on these specifications.
+        init.kaiming_uniform_(self.model[0].weight)
+        init.kaiming_uniform_(self.model[2].weight)
 
-        raise NotImplementedError("You need to write this part!")
-    
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lrate)
 
     def forward(self, x):
         """
@@ -62,9 +69,7 @@ class NeuralNet(nn.Module):
         Returns:
         Tensor: An (N, out_size) Tensor of output from the network.
         """
-        # TODO Implement the forward pass.
-        raise NotImplementedError("You need to write this part!")
-        return torch.ones(x.shape[0], 1)
+        return self.model(x)
 
     def step(self, x, y):
         """
@@ -77,15 +82,18 @@ class NeuralNet(nn.Module):
         Returns:
         float: The total empirical risk (mean of losses) for this batch.
         """
-    
-        raise NotImplementedError("You need to write this part!")
+
+        self.optimizer.zero_grad()
+        yhat = self.forward(x)
+        loss = self.loss_fn(yhat, y)
+        loss.backward()
+        self.optimizer.step()
         # Important, detach and move to cpu before converting to numpy and then to python float.
         # Or just use .item() to convert to python float. It will automatically detach and move to cpu.
-        return 0.0
+        return loss.item()
 
 
-
-def fit(train_set,train_labels,dev_set,epochs,batch_size=100):
+def fit(train_set, train_labels, dev_set, epochs, batch_size=100):
     """
     Creates and trains a NeuralNet object 'net'. Use net.step() to train the neural net
     and net(x) to evaluate the neural net.
@@ -109,6 +117,25 @@ def fit(train_set,train_labels,dev_set,epochs,batch_size=100):
     numpy.ndarray: An (M,) NumPy array (dtype=np.int64) of estimated class labels (0,1,2, or 3) for the development set (model predictions).
     NeuralNet: A NeuralNet object.
     """
-    raise NotImplementedError("You need to write this part!")
+    in_size = train_set.shape[1]
+    out_size = train_labels.max().item() + 1
+    lrate = 0.01
+    loss_fn = nn.CrossEntropyLoss()
+    net = NeuralNet(lrate, loss_fn, in_size, out_size)
+
+    train_dataset = get_dataset_from_arrays(train_set, train_labels)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+
+    losses = []
+    for epoch in range(epochs):
+        total_loss = 0
+        for sample in train_loader:
+            x = sample['features']
+            y = sample['labels']
+            total_loss += net.step(x, y)
+        losses.append(total_loss)
+
+    predictions = net(dev_set).argmax(dim=1).numpy()
+
     # Important, don't forget to detach losses and model predictions and convert them to the right return types.
-    return [],[],None
+    return losses, predictions, net
