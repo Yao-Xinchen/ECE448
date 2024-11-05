@@ -71,7 +71,7 @@ if __name__ == "__main__":
                         help='If set, saves net.model and state_dict.state for the leaderboard.')
     parser.add_argument('--part1', dest="part1", action='store_true',
                         help='If set, runs the model defined in neuralnet_part1.py')
-    parser.add_argument('--part2', dest="part1", action='store_true',
+    parser.add_argument('--part2', dest="part2", action='store_true',
                         help='If set, runs the model defined in neuralnet_part2.py')
     parser.add_argument('--epochs',dest="epochs", type=int, default = 50,
                         help='Training Epochs: default 50')

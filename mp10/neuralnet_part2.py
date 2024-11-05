@@ -42,15 +42,32 @@ class NeuralNet(nn.Module):
         """
         super(NeuralNet, self).__init__()
         self.loss_fn = loss_fn
+        self.hidden_size = 256
 
         # For Part 1, the network should have the following architecture (in terms of hidden units):
         # in_size -> h -> out_size, where 1 <= h <= 256
 
+        self.model = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1), # b x 16 x 31 x 31
+            nn.ReLU(), # b x 16 x 31 x 31
+            nn.MaxPool2d(kernel_size=2, stride=2), # b x 16 x 15 x 15
+            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1), # b x 32 x 15 x 15
+            nn.ReLU(), # b x 32 x 15 x 15
+            nn.MaxPool2d(kernel_size=2, stride=2), # b x 32 x 7 x 7
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1), # b x 64 x 7 x 7
+            nn.ReLU(), # b x 64 x 7 x 7
+            nn.MaxPool2d(kernel_size=2, stride=2), # b x 64 x 3 x 3
+            nn.Flatten(), # b x 576
+            nn.Linear(576, self.hidden_size), # b x 256
+            nn.ReLU(), # b x 256
+            nn.Linear(self.hidden_size, out_size) # b x out_size
+        )
 
-        # TODO Define the network architecture (layers) based on these specifications.
+        for layer in self.model:
+            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
+                nn.init.kaiming_uniform_(layer.weight)
 
-        raise NotImplementedError("You need to write this part!")
-    
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lrate)
 
     def forward(self, x):
         """
@@ -62,9 +79,7 @@ class NeuralNet(nn.Module):
         Returns:
         Tensor: An (N, out_size) Tensor of output from the network.
         """
-        # TODO Implement the forward pass.
-        raise NotImplementedError("You need to write this part!")
-        return torch.ones(x.shape[0], 1)
+        return self.model(x.view(-1, 3, 31, 31))
 
     def step(self, x, y):
         """
@@ -77,11 +92,15 @@ class NeuralNet(nn.Module):
         Returns:
         float: The total empirical risk (mean of losses) for this batch.
         """
-    
-        raise NotImplementedError("You need to write this part!")
+
+        self.optimizer.zero_grad()
+        yhat = self.forward(x)
+        loss = self.loss_fn(yhat, y)
+        loss.backward()
+        self.optimizer.step()
         # Important, detach and move to cpu before converting to numpy and then to python float.
         # Or just use .item() to convert to python float. It will automatically detach and move to cpu.
-        return 0.0
+        return loss.item()
 
 
 
@@ -109,6 +128,27 @@ def fit(train_set,train_labels,dev_set,epochs,batch_size=100):
     numpy.ndarray: An (M,) NumPy array (dtype=np.int64) of estimated class labels (0,1,2, or 3) for the development set (model predictions).
     NeuralNet: A NeuralNet object.
     """
-    raise NotImplementedError("You need to write this part!")
+    in_size = train_set.shape[1]
+    out_size = train_labels.max().item() + 1
+    lrate = 0.001
+    loss_fn = nn.CrossEntropyLoss()
+    net = NeuralNet(lrate, loss_fn, in_size, out_size)
+
+    train_dataset = get_dataset_from_arrays(train_set, train_labels)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+
+    losses = []
+    for epoch in range(epochs):
+        total_loss = 0
+        for sample in train_loader:
+            x = sample['features']
+            y = sample['labels']
+            total_loss += net.step(x, y)
+        losses.append(total_loss)
+
+    predictions = net(dev_set).argmax(dim=1).numpy()
+
+    print(losses)
+
     # Important, don't forget to detach losses and model predictions and convert them to the right return types.
-    return [],[],None
+    return losses, predictions, net
