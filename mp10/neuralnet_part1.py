@@ -43,7 +43,7 @@ class NeuralNet(nn.Module):
         """
         super(NeuralNet, self).__init__()
         self.loss_fn = loss_fn
-        self.hidden_size = 128
+        self.hidden_size = 64
 
         # For Part 1, the network should have the following architecture (in terms of hidden units):
         # in_size -> h -> out_size, where 1 <= h <= 256
@@ -51,7 +51,11 @@ class NeuralNet(nn.Module):
         self.model = nn.Sequential(
             nn.Linear(in_size, self.hidden_size),
             nn.ReLU(),
-            nn.Linear(self.hidden_size, out_size)
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, self.hidden_size),
+            nn.ReLU(),
+            nn.Linear(self.hidden_size, out_size),
         )
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lrate)
