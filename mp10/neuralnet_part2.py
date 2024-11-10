@@ -42,30 +42,31 @@ class NeuralNet(nn.Module):
         """
         super(NeuralNet, self).__init__()
         self.loss_fn = loss_fn
-        self.hidden_size = 256
 
         # For Part 1, the network should have the following architecture (in terms of hidden units):
         # in_size -> h -> out_size, where 1 <= h <= 256
 
         self.model = nn.Sequential(
-            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, stride=1, padding=1), # b x 16 x 31 x 31
-            nn.ReLU(), # b x 16 x 31 x 31
-            nn.MaxPool2d(kernel_size=2, stride=2), # b x 16 x 15 x 15
-            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, stride=1, padding=1), # b x 32 x 15 x 15
-            nn.ReLU(), # b x 32 x 15 x 15
-            nn.MaxPool2d(kernel_size=2, stride=2), # b x 32 x 7 x 7
-            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, stride=1, padding=1), # b x 64 x 7 x 7
-            nn.ReLU(), # b x 64 x 7 x 7
-            nn.MaxPool2d(kernel_size=2, stride=2), # b x 64 x 3 x 3
-            nn.Flatten(), # b x 576
-            nn.Linear(576, self.hidden_size), # b x 256
-            nn.ReLU(), # b x 256
-            nn.Linear(self.hidden_size, out_size) # b x out_size
+            # conv1
+            nn.Conv2d(in_channels=3, out_channels=16, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            # conv2
+            nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            # conv3
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            # flatten
+            nn.Flatten(),
+            # fc1
+            nn.Linear(64 * 3 * 3, 128),
+            nn.ReLU(),
+            # fc2
+            nn.Linear(128, out_size)
         )
-
-        for layer in self.model:
-            if isinstance(layer, nn.Conv2d) or isinstance(layer, nn.Linear):
-                nn.init.kaiming_uniform_(layer.weight)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lrate)
 
@@ -80,6 +81,13 @@ class NeuralNet(nn.Module):
         Tensor: An (N, out_size) Tensor of output from the network.
         """
         return self.model(x.view(-1, 3, 31, 31))
+        # print(f"Input shape: {x.shape}")
+        # x = x.view(-1, 3, 31, 31)
+        # print(f"After view: {x.shape}")
+        # for layer in self.model:
+        #     x = layer(x)
+        #     print(f"After {layer.__class__.__name__}: {x.shape}")
+        # return x
 
     def step(self, x, y):
         """
@@ -136,6 +144,12 @@ def fit(train_set,train_labels,dev_set,epochs,batch_size=100):
 
     train_dataset = get_dataset_from_arrays(train_set, train_labels)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+
+    # # count net parameters
+    # num_parameters = 0
+    # for param in net.parameters():
+    #     num_parameters += param.numel()
+    # print(f"Number of parameters: {num_parameters}")
 
     losses = []
     for epoch in range(epochs):

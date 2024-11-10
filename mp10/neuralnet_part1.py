@@ -43,7 +43,7 @@ class NeuralNet(nn.Module):
         """
         super(NeuralNet, self).__init__()
         self.loss_fn = loss_fn
-        self.hidden_size = 256
+        self.hidden_size = 128
 
         # For Part 1, the network should have the following architecture (in terms of hidden units):
         # in_size -> h -> out_size, where 1 <= h <= 256
@@ -53,9 +53,6 @@ class NeuralNet(nn.Module):
             nn.ReLU(),
             nn.Linear(self.hidden_size, out_size)
         )
-
-        init.kaiming_uniform_(self.model[0].weight)
-        init.kaiming_uniform_(self.model[2].weight)
 
         self.optimizer = optim.Adam(self.model.parameters(), lr=lrate)
 
@@ -119,12 +116,18 @@ def fit(train_set, train_labels, dev_set, epochs, batch_size=100):
     """
     in_size = train_set.shape[1]
     out_size = train_labels.max().item() + 1
-    lrate = 0.01
+    lrate = 0.002
     loss_fn = nn.CrossEntropyLoss()
     net = NeuralNet(lrate, loss_fn, in_size, out_size)
 
     train_dataset = get_dataset_from_arrays(train_set, train_labels)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
+
+    # # count net parameters
+    # num_parameters = 0
+    # for param in net.parameters():
+    #     num_parameters += param.numel()
+    # print(f"Number of parameters: {num_parameters}")
 
     losses = []
     for epoch in range(epochs):
