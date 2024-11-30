@@ -77,7 +77,8 @@ class Agent:
                 self.update_q(self.s, self.a, r, s_prime)
 
             self.s = s_prime
-            self.a = np.argmax(f)
+            # self.a = np.argmax(f)
+            self.a = len(f) - 1 - np.argmax(f[::-1])
             self.points = points
 
             if dead:
@@ -85,7 +86,8 @@ class Agent:
 
         else:
             self.s = s_prime
-            self.a = np.argmax(self.Q[s_prime])
+            # self.a = np.argmax(self.Q[s_prime])
+            self.a = len(self.Q[s_prime]) - 1 - np.argmax(self.Q[s_prime][::-1])
             self.points = points
 
         return self.a
